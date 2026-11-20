@@ -376,10 +376,28 @@ class IntegrationTest(unittest.TestCase):
 
 class TestVectorTest(unittest.TestCase):
   """
-  This test captures a known ciphertext produced by the original keyczar
-  library (pycrypto backend) and verifies the rewritten code can decrypt it.
-  If you have a real test vector, replace the values below.
+  Ciphertexts produced by the original python3-keyczar 0.71rc0 (Python 3.7,
+  pycryptodome), as used by dentalemr-backend, with throwaway keys. The
+  practice key is wrapped by the master key the same way the backend stores
+  Practice.aes_base64_private_key.
   """
+
+  MASTER_KEY = '{"mode": "CBC", "size": 256, "aesKeyString": "xji5jrObjdfKaoRvlBR5xLSAuEiY2gEIYPPxQadJKuM", "hmacKey": {"size": 256, "hmacKeyString": "HkCGoVLKPKJ5ySf0G8auPLOy7ZiZOvYRRMaNFicywe8"}}'
+  WRAPPED_PRACTICE_KEY = 'AObrwYQKjWLWXXxV-4UlkQukIpdvT515SqEParzVfa2fqeWWT5QqG7kSf5hTpzl3mn4bggRLjE6wN_pJ893aPLndAtwteIhfiwn2T9XOq7tVZNZuOzR6k28p3mggpwC3obr9unMNIHv7obul9T7aD-uSuc7bq2wGjpr9IYNvYHZFsGzlW8hOqb42cZpkw6i2qAPtVFdXYdT5yuVygP9LcpOnQKb1Cg9_2NdMdFJVTrlMnDY-ngpp-7Igk9pUKtiQ4ErM0APuWmB9wvf-4GW5CmaYthM4QIxg1qSBm8Oa0vlig-YOj60chPs'
+  PRACTICE_KEY = '{"mode": "CBC", "size": 256, "aesKeyString": "ZT5n7mN7eBOL1of9imbld6x6dZL9d5EBYi37DcV_-F0", "hmacKey": {"size": 256, "hmacKeyString": "a-quWkQBXvbEGHvdtt36p3j05Qe_54vlsWwNB62_AH8"}}'
+  CIPHERTEXT = 'ADKIv8U1LD2SN9SokI9uCnf10zH83lIckm9KNsfWpycZpXDQ28W1pKIBs3x_-1mIJpJIx-n3LEd-50BHB-cmkKq1ieG2ITWccA'
+  PLAINTEXT = 'Test Patient-Name 123 ü'
+
+  def test_decrypts_ciphertext_from_original_library(self):
+    c, _ = _make_crypter(keys.AesKey.Read(self.PRACTICE_KEY))
+    self.assertEqual(c.Decrypt(self.CIPHERTEXT), self.PLAINTEXT)
+
+  def test_unwraps_practice_key_from_original_library(self):
+    master, _ = _make_crypter(keys.AesKey.Read(self.MASTER_KEY))
+    practice_key = master.Decrypt(self.WRAPPED_PRACTICE_KEY)
+    self.assertEqual(json.loads(practice_key), json.loads(self.PRACTICE_KEY))
+    c, _ = _make_crypter(keys.AesKey.Read(practice_key))
+    self.assertEqual(c.Decrypt(self.CIPHERTEXT), self.PLAINTEXT)
 
   def test_self_generated_vector_survives_reload(self):
     """
